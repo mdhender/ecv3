@@ -4,17 +4,21 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"net/netip"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/mdhender/ecv3"
+	"github.com/mdhender/ecv3/server/auth"
 	"github.com/mdhender/ecv3/server/store"
 	"github.com/mdhender/ecv3/server/web"
 	"github.com/peterbourgon/ff/v4"
@@ -40,13 +44,21 @@ func run(ctx context.Context, args []string) error {
 	serveFlags := ff.NewFlagSet("serve").SetParent(rootFlags)
 	port := serveFlags.StringLong("port", defaultPort(), "TCP port to listen on")
 	dataDir := serveFlags.StringLong("data", defaultData(), "data directory holding "+store.Filename)
+	// Default true: sessions are bound to their origin IP (re-auth on change).
+	// Disable (--session-bind-ip=false) for clients whose IP rotates, e.g. a VPN.
+	bindIP := serveFlags.BoolLongDefault("session-bind-ip", true,
+		"bind each session to its origin IP; re-auth on IP change (disable for rotating-IP/VPN clients)")
+	// Caddy terminates TLS on the same host in dev/prod, so loopback is the
+	// trusted proxy by default. X-Forwarded-For is honored only from these.
+	trustedProxies := serveFlags.StringLong("trusted-proxies", "127.0.0.0/8,::1/128",
+		"comma-separated CIDRs of trusted reverse proxies whose X-Forwarded-For is honored")
 	serveCmd := &ff.Command{
 		Name:      "serve",
 		Usage:     "ec serve [FLAGS]",
 		ShortHelp: "run the HTTP server (API + embedded SPA)",
 		Flags:     serveFlags,
 		Exec: func(ctx context.Context, _ []string) error {
-			return serve(ctx, *port, *dataDir)
+			return serve(ctx, *port, *dataDir, *bindIP, *trustedProxies)
 		},
 	}
 
@@ -167,7 +179,25 @@ func defaultData() string {
 	return "data"
 }
 
-func serve(ctx context.Context, port, dataDir string) error {
+// parseCIDRs parses a comma-separated list of CIDRs (e.g. the --trusted-proxies
+// flag) into prefixes. An empty string yields no prefixes (trust no proxy).
+func parseCIDRs(s string) ([]netip.Prefix, error) {
+	var out []netip.Prefix
+	for _, part := range strings.Split(s, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		p, err := netip.ParsePrefix(part)
+		if err != nil {
+			return nil, fmt.Errorf("invalid CIDR %q: %w", part, err)
+		}
+		out = append(out, p.Masked())
+	}
+	return out, nil
+}
+
+func serve(ctx context.Context, port, dataDir string, bindIP bool, trustedProxies string) error {
 	// Open the database and apply migrations BEFORE serving. serve never
 	// creates a database; a missing one is a fast, clear failure.
 	st, err := store.Open(dataDir)
@@ -181,6 +211,15 @@ func serve(ctx context.Context, port, dataDir string) error {
 		return err
 	}
 
+	proxies, err := parseCIDRs(trustedProxies)
+	if err != nil {
+		return fmt.Errorf("parsing --trusted-proxies: %w", err)
+	}
+
+	// Session manager. Secure is always true: cookies are HTTPS-only (TLS is
+	// terminated by Caddy in dev/prod, or directly by this binary via autocert).
+	sessions := auth.New(st, auth.Config{BindIP: bindIP, Secure: true, TrustedProxies: proxies})
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -193,8 +232,24 @@ func serve(ctx context.Context, port, dataDir string) error {
 	})
 	mux.Handle("/", spa)
 
+	// Handler chain (outermost first):
+	//   CrossOriginProtection  - stdlib CSRF defense: rejects cross-origin
+	//                            unsafe-method requests via Sec-Fetch-Site /
+	//                            Origin-vs-Host. Safe methods (incl. SSE GETs)
+	//                            pass through untouched.
+	//   session middleware     - resolves the cookie into a request identity.
+	csrf := http.NewCrossOriginProtection()
+	handler := csrf.Handler(sessions.Middleware(mux))
+
 	addr := ":" + port
-	srv := &http.Server{Addr: addr, Handler: mux}
+	srv := &http.Server{
+		Addr:    addr,
+		Handler: handler,
+		// TLS 1.3 only on any direct-TLS path (autocert). When TLS is terminated
+		// by Caddy the binary speaks plain HTTP and this is unused; the edge must
+		// likewise be configured TLS 1.3 only. We do not support older clients.
+		TLSConfig: &tls.Config{MinVersion: tls.VersionTLS13},
+	}
 
 	// Graceful shutdown: on SIGINT/SIGTERM, stop accepting requests, drain
 	// in-flight ones, then let the deferred st.Close() release the pool.
