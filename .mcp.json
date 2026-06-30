@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ember": {
+      "command": "node",
+      "args": ["/Users/wraith/Software/ember-mcp/ember-mcp/index.js"]
+    }
+  }
+}
