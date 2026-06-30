@@ -91,14 +91,69 @@ go.mod              # module github.com/mdhender/ecv3 (rooted at repo root)
 ## Versions (to confirm — fill in via ember-mcp / `go version`)
 
 - Go: `1.26.4` (per `go.mod`; needs 1.22+ for pattern routing)
-- Ember: `__` (v7 / latest Polaris — verify via ember-mcp)
-- SQLite driver: `zombiezen.com/go/sqlite` `__` (+ `zombiezen.com/go/sqlite/sqlitemigration`)
-- Node (build/CI only): `__` (ember-mcp itself needs Node 22+)
+- Ember: `ember-source ~7.0.0`, `ember-cli ~7.0.0` (scaffolded with CLI 7.0.1). App is **TypeScript (.gts + Glint)**, strict mode.
+- Build system: **Vite 8 + Embroider** (`@embroider/vite ^1.7.2`); type-check via `ember-tsc`. TypeScript `^5.9.3`.
+- Data layer: **WarpDrive** (`@warp-drive/core` + `@warp-drive/ember` `~5.8.2`); store at `client/app/services/store.ts`.
+- CLI/config: `github.com/peterbourgon/ff/v4` `v4.0.0-beta.1` (ff.Command tree in `cmd/ec`).
+- Versioning: `github.com/maloquacious/semver` `v0.4.0`; version lives in root `version.go` (`ecv3.Version()`).
+- SQLite driver: `zombiezen.com/go/sqlite` (+ `zombiezen.com/go/sqlite/sqlitemigration`) `__` (pin once added to `go.mod`)
+- Node (build/CI only): `22.x` (currently `22.22.2`). Minimum `>= 20.19.0` for ember-cli 7.0.1; ember-mcp needs Node 22+.
+- Package manager (client): **pnpm** `11.9.0` (via corepack).
 
-## Commands (to fill in as the project takes shape)
+## Commands
 
-- Build SPA: `__`
-- Build binary: `go build -o ec ./cmd/ec`
-- Run server: `go run ./cmd/ec`
-- Test (Go): `go test ./...`
-- Test (Ember): `cd client && ember test`
+Production build is orchestrated by the **Makefile** (SPA must be built and
+embedded before `go build`):
+
+- `make build` — build the Ember SPA, copy it into `server/web/dist`, then compile `ec` (the production binary)
+- `make spa` / `make embed` — build the SPA / copy it into the embed dir
+- `make server` — compile the binary only (assumes the SPA is already embedded)
+- `make test` — `go test ./...` + `cd client && pnpm test`
+- `make clean` — remove the binary and generated build output (preserves the embed dir's committed `.gitignore`)
+
+The binary (`ec`) is an `ff.Command` tree:
+
+- `ec serve [--port N]` — run the HTTP server (API + embedded SPA). Port defaults to `$PORT` then `8080`. (`go run ./cmd/ec serve`)
+- `ec version` — print the core version (`major.minor.patch`) from `ecv3.Version().Core()`
+- `ec` (no subcommand) — print help
+
+Client-only commands:
+
+- Install deps: `cd client && pnpm install`
+- Build SPA: `cd client && pnpm build` → `client/dist/`
+- Lint / type-check: `cd client && pnpm lint` / `pnpm lint:types`
+
+How the embed works: `server/web/web.go` does `//go:embed all:dist` and serves
+the SPA with an index.html fallback for client-side routes. Until the SPA is
+built, `server/web/dist` holds only its committed `.gitignore`, so `go build`
+still compiles and the server returns a "run make build" notice at `/`.
+
+## Development workflow
+
+Dev is fronted by the developer's **global, brew-managed Caddy**
+(`/opt/homebrew/etc/Caddyfile`), which multiplexes all local projects on one
+instance via `*.localhost` subdomains (global `http_port 8080` / `https_port
+8443`). ecv3 is the `ecv3.localhost` site; a single TLS origin makes dev mirror
+prod (HttpOnly+Secure cookies and SSE both require same-origin). **In dev the
+SPA is NOT embedded** — air rebuilds only the Go API; Ember serves `/` itself.
+
+```
+Browser ─> https://ecv3.localhost:8443 (global Caddy, tls internal)
+             ├── /api/*  ─> Go API   (air, :25634)  — SSE-friendly (flush_interval -1)
+             └── /*      ─> Ember/Vite (:4201)      — HMR over wss
+```
+
+One-time setup: paste the two blocks from `dist/Caddyfile` (a fragment, not a
+standalone config) into `/opt/homebrew/etc/Caddyfile`, then reload:
+`caddy reload --config /opt/homebrew/etc/Caddyfile --adapter caddyfile`.
+
+Then run in separate terminals (`make dev` prints this):
+
+1. `air` — rebuilds/restarts the Go API on `:25634` (config: `.air.toml`; watches `*.go`, ignores `client/` and `server/web/dist/`).
+2. `cd client && pnpm start` — Ember dev server (Vite) on `:4201` with hot reload (port + HMR set for `ecv3.localhost:8443` in `client/vite.config.mjs`).
+
+Backend ports (`:25634` Go, `:4201` Ember) are chosen to not collide with the
+other projects in the global Caddyfile. The production binary still defaults to
+`:8080` (overridden in dev by `PORT` in `.air.toml`).
+
+Tools needed for dev (not required to build): `air` (`go install github.com/air-verse/air@latest`); Caddy (already running as a brew service).

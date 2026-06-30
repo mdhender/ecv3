@@ -1,0 +1,90 @@
+# Sample systemd unit for the ecv3 server (production).
+#
+# This is a TEMPLATE — review paths/ports before deploying.
+#
+# One-time host setup:
+#   sudo groupadd --system ecv3
+#   sudo useradd  --system --gid ecv3 --no-create-home --shell /usr/sbin/nologin ecv3
+#   sudo mkdir -p /opt/ecv3/bin /opt/ecv3/data
+#   sudo install -m 0755 ec /opt/ecv3/bin/ec            # the built binary (make build -> ./ec)
+#   sudo chown -R ecv3:ecv3 /opt/ecv3
+#   sudo chmod 0750 /opt/ecv3/data
+#
+# Install + enable the service:
+#   sudo install -m 0644 dist/ecv3.service /etc/systemd/system/ecv3.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now ecv3.service
+#   journalctl -u ecv3 -f            # follow logs
+
+[Unit]
+Description=ecv3 4X strategy game server
+Documentation=https://github.com/mdhender/ecv3
+After=network-online.target
+Wants=network-online.target
+
+# Maintenance gate: if /opt/ecv3/MAINTENANCE exists, the start is skipped
+# (the leading "!" negates the check). A failed condition is logged and treated
+# as success, so the unit isn't marked failed. To take the service down for a
+# maintenance window:
+#   sudo touch /opt/ecv3/MAINTENANCE && sudo systemctl stop ecv3
+# and to bring it back:
+#   sudo rm /opt/ecv3/MAINTENANCE && sudo systemctl start ecv3
+ConditionPathExists=!/opt/ecv3/MAINTENANCE
+
+[Service]
+Type=simple
+User=ecv3
+Group=ecv3
+WorkingDirectory=/opt/ecv3
+ExecStart=/opt/ecv3/bin/ec serve
+
+# Configuration via environment (the binary reads PORT; defaults to 8080).
+# ECV3_DATA points at the SQLite data dir — reserved for when persistence lands.
+Environment=PORT=8080
+Environment=ECV3_DATA=/opt/ecv3/data
+
+Restart=on-failure
+RestartSec=5s
+
+# Logging to journald (view with: journalctl -u ecv3)
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ecv3
+
+# --- Sandboxing / hardening -------------------------------------------------
+# The service runs unprivileged and needs to write only the data dir.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/ecv3/data
+UMask=0077
+
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RemoveIPC=true
+
+# Listening on :8080 needs no extra capabilities, so drop them all.
+# If you later bind a privileged port (e.g. :443 via autocert), instead set:
+#   AmbientCapabilities=CAP_NET_BIND_SERVICE
+#   CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+# AF_NETLINK is used by Go's net package for interface lookups.
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target

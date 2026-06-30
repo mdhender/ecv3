@@ -1,0 +1,52 @@
+# ecv3 dev — Caddy site FRAGMENT (not a standalone config).
+#
+# Your global, brew-managed Caddy (/opt/homebrew/etc/Caddyfile) multiplexes all
+# dev projects on one instance via *.localhost subdomains (global options there
+# set http_port 8080 / https_port 8443). To bring ecv3 online, copy the two
+# blocks below into that file, then reload Caddy without downtime:
+#
+#   caddy reload --config /opt/homebrew/etc/Caddyfile --adapter caddyfile
+#
+# Then open https://ecv3.localhost:8443
+#
+# Backend ports chosen to not collide with existing projects in that file:
+#   Go API (air)        -> :25634   (PORT in .air.toml)
+#   Ember dev (Vite)    -> :4201    (client/vite.config.mjs)
+#
+# ── paste from here ──────────────────────────────────────────────────────────
+
+# HTTP -> HTTPS redirect
+ecv3.localhost:8080 {
+	redir https://ecv3.localhost:8443{uri}
+}
+
+ecv3.localhost {
+	tls internal
+	encode zstd gzip
+
+	log {
+		output file /opt/homebrew/var/log/ecv3.dev.access.log
+		format console
+	}
+
+	# --- API + SSE -> Go server on :25634 ---
+	# flush_interval -1 disables buffering so text/event-stream (SSE) streams.
+	@api path /api/*
+	handle @api {
+		reverse_proxy localhost:25634 {
+			flush_interval -1
+		}
+	}
+
+	# --- Everything else -> Ember dev server on :4201 (HMR over WS) ---
+	handle {
+		reverse_proxy localhost:4201
+	}
+
+	# Safer for dev (don't pin HSTS)
+	header {
+		Strict-Transport-Security "max-age=0"
+	}
+}
+
+# ── paste to here ────────────────────────────────────────────────────────────

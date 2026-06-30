@@ -3,3 +3,6 @@
 
 # built binary
 /ec
+
+# air live-reload build output
+/tmp/
