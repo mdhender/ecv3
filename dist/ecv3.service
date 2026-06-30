@@ -6,7 +6,7 @@
 #   sudo groupadd --system ecv3
 #   sudo useradd  --system --gid ecv3 --no-create-home --shell /usr/sbin/nologin ecv3
 #   sudo mkdir -p /opt/ecv3/bin /opt/ecv3/data
-#   sudo install -m 0755 ec /opt/ecv3/bin/ecv3          # the built binary (make build -> ./ec)
+#   sudo install -m 0755 ec /opt/ecv3/bin/ec            # the built binary (make build -> ./ec)
 #   sudo chown -R ecv3:ecv3 /opt/ecv3
 #   sudo chmod 0750 /opt/ecv3/data
 #
@@ -27,7 +27,7 @@ Type=simple
 User=ecv3
 Group=ecv3
 WorkingDirectory=/opt/ecv3
-ExecStart=/opt/ecv3/bin/ecv3 serve
+ExecStart=/opt/ecv3/bin/ec serve
 
 # Configuration via environment (the binary reads PORT; defaults to 8080).
 # ECV3_DATA points at the SQLite data dir — reserved for when persistence lands.
