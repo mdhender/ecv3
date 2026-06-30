@@ -6,3 +6,9 @@
 
 # air live-reload build output
 /tmp/
+
+# dev SQLite data dir (default --data; ecv3.db + WAL/SHM sidecars)
+/data/
+
+# local task notes (not tracked)
+/next-task.md
