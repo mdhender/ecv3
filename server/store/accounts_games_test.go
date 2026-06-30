@@ -80,18 +80,49 @@ func queryInt(t *testing.T, c *sqlite.Conn, query string, args ...any) int64 {
 	return got
 }
 
-// newAccount inserts an account and returns its id.
+// newAccount inserts an account through the real (bcrypt-hashing) createAccount
+// path and returns its id. Tests that don't care about the password use a fixed
+// one; the point is to exercise the production insert, not a raw placeholder.
 func newAccount(t *testing.T, c *sqlite.Conn, email string, admin int) int64 {
 	t.Helper()
-	mustExec(t, c, "INSERT INTO accounts (email, hashed_secret, is_admin) VALUES (?, ?, ?);", email, "hash", admin)
-	return c.LastInsertRowID()
+	id, err := createAccount(c, email, "test-password", admin == 1)
+	if err != nil {
+		t.Fatalf("createAccount(%q): %v", email, err)
+	}
+	return id
 }
 
-// newGame inserts a game and returns its id.
+// newGame inserts a game through the real createGame path and returns its id.
 func newGame(t *testing.T, c *sqlite.Conn, code string) int64 {
 	t.Helper()
-	mustExec(t, c, "INSERT INTO games (code) VALUES (?);", code)
-	return c.LastInsertRowID()
+	id, err := createGame(c, code)
+	if err != nil {
+		t.Fatalf("createGame(%q): %v", code, err)
+	}
+	return id
+}
+
+// seedAccount describes one account for the seedAccounts fixture.
+type seedAccount struct {
+	email    string
+	password string
+	admin    bool
+}
+
+// seedAccounts inserts the given accounts on conn via the real (bcrypt) path and
+// returns a map from (normalized) email to the new account id, so table-driven
+// tests get known data without hand-writing INSERTs.
+func seedAccounts(t *testing.T, c *sqlite.Conn, accts ...seedAccount) map[string]int64 {
+	t.Helper()
+	ids := make(map[string]int64, len(accts))
+	for _, a := range accts {
+		id, err := createAccount(c, a.email, a.password, a.admin)
+		if err != nil {
+			t.Fatalf("seedAccounts: createAccount(%q): %v", a.email, err)
+		}
+		ids[strings.ToLower(strings.TrimSpace(a.email))] = id
+	}
+	return ids
 }
 
 // TestMigration0002AppliesAndIsIdempotent confirms 0002 lands on both Create

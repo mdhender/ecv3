@@ -1,0 +1,16 @@
+{
+  "accounts": [
+    { "email": "admin@example.com", "password": "change-me-admin", "is_admin": true },
+    { "email": "gm@example.com", "password": "change-me-gm" },
+    { "email": "alice@example.com", "password": "change-me-alice" },
+    { "email": "bob@example.com", "password": "change-me-bob" }
+  ],
+  "games": [
+    { "code": "demo" }
+  ],
+  "game_accounts": [
+    { "game": "demo", "email": "gm@example.com", "handle": "gamemaster", "is_gm": true },
+    { "game": "demo", "email": "alice@example.com", "handle": "alice" },
+    { "game": "demo", "email": "bob@example.com" }
+  ]
+}

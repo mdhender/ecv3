@@ -96,7 +96,8 @@ go.mod              # module github.com/mdhender/ecv3 (rooted at repo root)
 - Data layer: **WarpDrive** (`@warp-drive/core` + `@warp-drive/ember` `~5.8.2`); store at `client/app/services/store.ts`.
 - CLI/config: `github.com/peterbourgon/ff/v4` `v4.0.0-beta.1` (ff.Command tree in `cmd/ec`).
 - Versioning: `github.com/maloquacious/semver` `v0.4.0`; version lives in root `version.go` (`ecv3.Version()`).
-- SQLite driver: `zombiezen.com/go/sqlite` (+ `zombiezen.com/go/sqlite/sqlitemigration`) `v1.4.2` (pure Go, no CGO). Data layer is `server/store`; the DB file is always `<data>/ecv3.db` (`store.Filename`). `store.Create`/`store.Open` also accept `:memory:` (`store.MemoryPath`) for in-memory test databases.
+- SQLite driver: `zombiezen.com/go/sqlite` (+ `zombiezen.com/go/sqlite/sqlitemigration`) `v1.4.2` (pure Go, no CGO). Data layer is `server/store`; the DB file is always `<data>/ecv3.db` (`store.Filename`). `store.Create`/`store.Open` also accept `:memory:` (`store.MemoryPath`) for in-memory test databases. Account/game primitives live in `server/store/accounts.go` (`CreateAccount`/`CreateGame`/`AddGameAccount`); the declarative seed loader is `server/store/seed.go` (`Seed`/`ApplySeed`).
+- Password hashing: `golang.org/x/crypto/bcrypt` `v0.53.0` (passwords hashed in Go, never sent as plaintext to SQLite). No-echo TTY prompts via `golang.org/x/term` `v0.44.0`. Passphrase generation reuses `internal/phrases` over a `math/rand/v2` PCG source (single `--seed` expanded with SplitMix64; unseeded seeds drawn from `crypto/rand`).
 - Node (build/CI only): `22.x` (currently `22.22.2`). Minimum `>= 20.19.0` for ember-cli 7.0.1; ember-mcp needs Node 22+.
 - Package manager (client): **pnpm** `11.9.0` (via corepack).
 
@@ -114,6 +115,9 @@ embedded before `go build`):
 The binary (`ec`) is an `ff.Command` tree:
 
 - `ec serve [--port N]` — run the HTTP server (API + embedded SPA). Port defaults to `$PORT` then `8080`. (`go run ./cmd/ec serve`)
+- `ec database create <path>` — create a new database in `<path>` and apply migrations.
+- `ec database seed --dev [--data DIR] <file>` — load accounts/games/memberships from a JSON seed file (see `testdata/dev-seed.json`). Dev/test only: refuses to run without `--dev`. Like all `ec` subcommands (stdlib-style parsing) flags must precede the positional `<file>`.
+- `ec admin create --email <addr> [--generate] [--seed N] [--data DIR]` — create an admin in an existing DB. Password source: `--generate` (explicit; random 5-word passphrase printed once) takes precedence; otherwise a no-echo TTY prompt, then `ECV3_ADMIN_PASSWORD` for non-interactive use. `--seed N` pins the generator (reproducible; `--generate` only); no flag for a plaintext password (shell history). Re-running an existing email fails clearly.
 - `ec version` — print the core version (`major.minor.patch`) from `ecv3.Version().Core()`
 - `ec` (no subcommand) — print help
 

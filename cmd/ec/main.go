@@ -63,7 +63,9 @@ func run(ctx context.Context, args []string) error {
 		},
 	}
 
-	rootCmd.Subcommands = []*ff.Command{serveCmd, databaseCmd, versionCmd}
+	adminCmd := newAdminCmd(rootFlags)
+
+	rootCmd.Subcommands = []*ff.Command{serveCmd, databaseCmd, adminCmd, versionCmd}
 	// Bare `ec` (no subcommand) prints help.
 	rootCmd.Exec = func(context.Context, []string) error {
 		fmt.Fprint(os.Stderr, ffhelp.Command(rootCmd))
@@ -113,7 +115,23 @@ func newDatabaseCmd(rootFlags *ff.FlagSet) *ff.Command {
 		},
 	}
 
-	dbCmd.Subcommands = []*ff.Command{createCmd}
+	seedFlags := ff.NewFlagSet("seed").SetParent(dbFlags)
+	seedDataDir := seedFlags.StringLong("data", defaultData(), "data directory holding "+store.Filename)
+	seedDev := seedFlags.BoolLong("dev", "confirm this is a dev/test database (required; seeding is never for prod)")
+	seedCmd := &ff.Command{
+		Name:      "seed",
+		Usage:     "ec database seed --dev [--data DIR] <file>",
+		ShortHelp: "load accounts/games from a JSON seed file (dev/test only)",
+		Flags:     seedFlags,
+		Exec: func(ctx context.Context, args []string) error {
+			if len(args) != 1 {
+				return errors.New("usage: ec database seed --dev <file>")
+			}
+			return databaseSeed(ctx, args[0], *seedDataDir, *seedDev)
+		},
+	}
+
+	dbCmd.Subcommands = []*ff.Command{createCmd, seedCmd}
 	// Bare `ec database` (no subcommand) prints help.
 	dbCmd.Exec = func(context.Context, []string) error {
 		fmt.Fprint(os.Stderr, ffhelp.Command(dbCmd))
