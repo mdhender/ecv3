@@ -48,10 +48,11 @@ clean:
 	find $(EMBED_DIR) -mindepth 1 $(KEEP) -delete
 	rm -rf $(CLIENT_DIST)
 
-## dev: print the development workflow (air + ember + caddy run separately)
+## dev: print the development workflow (air + ember; global Caddy proxies)
 dev:
-	@echo "Open the app at https://localhost:8443  (run 'caddy trust' once for a trusted cert)"
-	@echo "Run these in separate terminals:"
-	@echo "  1. air                       # rebuild/restart the Go API on :8080"
-	@echo "  2. cd client && pnpm start   # Ember dev server (Vite) on :4200, hot reload"
-	@echo "  3. caddy run                 # TLS proxy on :8443 -> /api to Go, / to Ember"
+	@echo "ecv3 dev runs behind your global Caddy at https://ecv3.localhost:8443"
+	@echo "One-time: paste the ./Caddyfile fragment into /opt/homebrew/etc/Caddyfile, then:"
+	@echo "  caddy reload --config /opt/homebrew/etc/Caddyfile --adapter caddyfile"
+	@echo "Then run these in separate terminals:"
+	@echo "  1. air                       # rebuild/restart the Go API on :25634"
+	@echo "  2. cd client && pnpm start   # Ember dev server (Vite) on :4201, hot reload"

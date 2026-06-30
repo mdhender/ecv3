@@ -1,16 +1,17 @@
 # air config for live-rebuilding the Go server in development.
 # https://github.com/air-verse/air
 #
-# In dev, air rebuilds ONLY the Go API (no SPA build) and serves on :8080.
-# Caddy routes /api/* here; Ember's own dev server serves the SPA at /, so the
-# embedded server/web/dist is irrelevant in dev (and excluded below).
+# In dev, air rebuilds ONLY the Go API (no SPA build) and serves on :25634.
+# The global Caddy routes ecv3.localhost /api/* here; Ember's own dev server
+# serves the SPA at /, so the embedded server/web/dist is irrelevant in dev
+# (and excluded below).
 root = "."
 tmp_dir = "tmp"
 
 [build]
   cmd = "go build -o ./tmp/ec ./cmd/ec"
   bin = "tmp/ec"
-  full_bin = "PORT=8080 ./tmp/ec"
+  full_bin = "PORT=25634 ./tmp/ec"
   include_ext = ["go"]
   exclude_dir = ["tmp", "client", "server/web/dist"]
   exclude_regex = ["_test\\.go"]

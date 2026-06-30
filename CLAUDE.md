@@ -122,21 +122,30 @@ still compiles and the server returns a "run make build" notice at `/`.
 
 ## Development workflow
 
-Dev runs three processes; a Caddy reverse proxy unifies them under one TLS
-origin so dev mirrors prod (HttpOnly+Secure cookies and SSE both require
-same-origin). `make dev` prints this. **In dev the SPA is NOT embedded** —
-air rebuilds only the Go API; Ember serves `/` itself.
+Dev is fronted by the developer's **global, brew-managed Caddy**
+(`/opt/homebrew/etc/Caddyfile`), which multiplexes all local projects on one
+instance via `*.localhost` subdomains (global `http_port 8080` / `https_port
+8443`). ecv3 is the `ecv3.localhost` site; a single TLS origin makes dev mirror
+prod (HttpOnly+Secure cookies and SSE both require same-origin). **In dev the
+SPA is NOT embedded** — air rebuilds only the Go API; Ember serves `/` itself.
 
 ```
-Browser ─> https://localhost:8443 (Caddy, ./Caddyfile, local internal CA)
-             ├── /api/*  ─> Go API   (air, :8080)   — SSE-friendly (flush_interval -1)
-             └── /*      ─> Ember/Vite (:4200)      — HMR over wss
+Browser ─> https://ecv3.localhost:8443 (global Caddy, tls internal)
+             ├── /api/*  ─> Go API   (air, :25634)  — SSE-friendly (flush_interval -1)
+             └── /*      ─> Ember/Vite (:4201)      — HMR over wss
 ```
 
-Run in separate terminals:
+One-time setup: paste the two blocks from `./Caddyfile` (a fragment, not a
+standalone config) into `/opt/homebrew/etc/Caddyfile`, then reload:
+`caddy reload --config /opt/homebrew/etc/Caddyfile --adapter caddyfile`.
 
-1. `air` — rebuilds/restarts the Go API on `:8080` (config: `.air.toml`; watches `*.go`, ignores `client/` and `server/web/dist/`).
-2. `cd client && pnpm start` — Ember dev server (Vite) on `:4200` with hot reload (port pinned + HMR `clientPort` set in `client/vite.config.mjs`).
-3. `caddy run` — TLS proxy on `:8443`. Run `caddy trust` once for a trusted local cert.
+Then run in separate terminals (`make dev` prints this):
 
-Tools needed for dev (not required to build): `air` (`go install github.com/air-verse/air@latest`), `caddy`.
+1. `air` — rebuilds/restarts the Go API on `:25634` (config: `.air.toml`; watches `*.go`, ignores `client/` and `server/web/dist/`).
+2. `cd client && pnpm start` — Ember dev server (Vite) on `:4201` with hot reload (port + HMR set for `ecv3.localhost:8443` in `client/vite.config.mjs`).
+
+Backend ports (`:25634` Go, `:4201` Ember) are chosen to not collide with the
+other projects in the global Caddyfile. The production binary still defaults to
+`:8080` (overridden in dev by `PORT` in `.air.toml`).
+
+Tools needed for dev (not required to build): `air` (`go install github.com/air-verse/air@latest`); Caddy (already running as a brew service).
