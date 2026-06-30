@@ -6,3 +6,6 @@
 
 # air live-reload build output
 /tmp/
+
+# local task notes (not tracked)
+/next-task.md
