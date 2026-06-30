@@ -1,0 +1,35 @@
+# Development reverse proxy for ecv3.
+#
+# Unifies the Go API and the Ember dev server under ONE TLS origin so dev
+# mirrors prod: HttpOnly+Secure session cookies and SSE (EventSource) both work
+# because everything is same-origin over https. Run with `caddy run`.
+#
+#   Browser ──> https://localhost:8443 (Caddy, local internal CA)
+#                 ├── /api/*  ──> Go server   (air, :8080)   [SSE-friendly]
+#                 └── /*      ──> Ember/Vite   (:4200)        [HMR over wss]
+#
+# 8443 is unprivileged (no sudo). Caddy issues a local cert from its internal
+# CA; run `caddy trust` once to silence the browser warning.
+
+{
+	# Dev proxy: serve HTTPS only. Don't bind :80 for HTTP->HTTPS redirects
+	# (avoids conflicting with anything already on :80).
+	auto_https disable_redirects
+}
+
+localhost:8443 {
+	# API + SSE → Go. flush_interval -1 disables response buffering so
+	# text/event-stream events stream to the client immediately.
+	handle /api/* {
+		reverse_proxy localhost:8080 {
+			flush_interval -1
+		}
+	}
+
+	# Everything else → Ember dev server. Caddy proxies the Vite HMR
+	# websocket automatically; vite.config.mjs sets hmr.clientPort=8443 so
+	# the browser's HMR client connects back through this origin.
+	handle {
+		reverse_proxy localhost:4200
+	}
+}

@@ -98,13 +98,45 @@ go.mod              # module github.com/mdhender/ecv3 (rooted at repo root)
 - Node (build/CI only): `22.x` (currently `22.22.2`). Minimum `>= 20.19.0` for ember-cli 7.0.1; ember-mcp needs Node 22+.
 - Package manager (client): **pnpm** `11.9.0` (via corepack).
 
-## Commands (to fill in as the project takes shape)
+## Commands
 
-- Install client deps: `cd client && pnpm install`
-- Dev server (client): `cd client && pnpm start` (Vite)
-- Build SPA: `cd client && pnpm build` → outputs `client/dist/` (TODO: wire copy/build into `server/web/dist/` for `go:embed`)
-- Lint/type-check (client): `cd client && pnpm lint` / `pnpm lint:types`
-- Test (Ember): `cd client && pnpm test`
-- Build binary: `go build -o ec ./cmd/ec`
-- Run server: `go run ./cmd/ec`
-- Test (Go): `go test ./...`
+Production build is orchestrated by the **Makefile** (SPA must be built and
+embedded before `go build`):
+
+- `make build` — build the Ember SPA, copy it into `server/web/dist`, then compile `ec` (the production binary)
+- `make spa` / `make embed` — build the SPA / copy it into the embed dir
+- `make server` — compile the binary only (assumes the SPA is already embedded)
+- `make test` — `go test ./...` + `cd client && pnpm test`
+- `make clean` — remove the binary and generated build output (preserves the embed dir's committed `.gitignore`)
+
+Client-only commands:
+
+- Install deps: `cd client && pnpm install`
+- Build SPA: `cd client && pnpm build` → `client/dist/`
+- Lint / type-check: `cd client && pnpm lint` / `pnpm lint:types`
+
+How the embed works: `server/web/web.go` does `//go:embed all:dist` and serves
+the SPA with an index.html fallback for client-side routes. Until the SPA is
+built, `server/web/dist` holds only its committed `.gitignore`, so `go build`
+still compiles and the server returns a "run make build" notice at `/`.
+
+## Development workflow
+
+Dev runs three processes; a Caddy reverse proxy unifies them under one TLS
+origin so dev mirrors prod (HttpOnly+Secure cookies and SSE both require
+same-origin). `make dev` prints this. **In dev the SPA is NOT embedded** —
+air rebuilds only the Go API; Ember serves `/` itself.
+
+```
+Browser ─> https://localhost:8443 (Caddy, ./Caddyfile, local internal CA)
+             ├── /api/*  ─> Go API   (air, :8080)   — SSE-friendly (flush_interval -1)
+             └── /*      ─> Ember/Vite (:4200)      — HMR over wss
+```
+
+Run in separate terminals:
+
+1. `air` — rebuilds/restarts the Go API on `:8080` (config: `.air.toml`; watches `*.go`, ignores `client/` and `server/web/dist/`).
+2. `cd client && pnpm start` — Ember dev server (Vite) on `:4200` with hot reload (port pinned + HMR `clientPort` set in `client/vite.config.mjs`).
+3. `caddy run` — TLS proxy on `:8443`. Run `caddy trust` once for a trusted local cert.
+
+Tools needed for dev (not required to build): `air` (`go install github.com/air-verse/air@latest`), `caddy`.

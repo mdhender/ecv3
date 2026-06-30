@@ -50,7 +50,8 @@ clean:
 
 ## dev: print the development workflow (air + ember + caddy run separately)
 dev:
-	@echo "Run these in separate terminals for development:"
-	@echo "  1. air                 # rebuild/restart the Go server on change"
-	@echo "  2. cd client && pnpm start   # Ember dev server with hot reload"
-	@echo "  3. caddy run           # proxy / -> ember, /api -> Go server"
+	@echo "Open the app at https://localhost:8443  (run 'caddy trust' once for a trusted cert)"
+	@echo "Run these in separate terminals:"
+	@echo "  1. air                       # rebuild/restart the Go API on :8080"
+	@echo "  2. cd client && pnpm start   # Ember dev server (Vite) on :4200, hot reload"
+	@echo "  3. caddy run                 # TLS proxy on :8443 -> /api to Go, / to Ember"

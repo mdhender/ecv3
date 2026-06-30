@@ -12,4 +12,15 @@ export default defineConfig({
       extensions,
     }),
   ],
+  // Dev server is fronted by Caddy (see ../Caddyfile), which terminates TLS at
+  // https://localhost:8443 and proxies non-/api traffic here. Pin the port so
+  // the Caddyfile is deterministic, and point the HMR websocket back at the
+  // Caddy origin so hot reload works through the proxy.
+  server: {
+    port: 4200,
+    strictPort: true,
+    hmr: {
+      clientPort: 8443,
+    },
+  },
 });
