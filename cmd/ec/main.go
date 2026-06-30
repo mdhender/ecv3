@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/mdhender/ecv3"
+	"github.com/mdhender/ecv3/server/api"
 	"github.com/mdhender/ecv3/server/auth"
 	"github.com/mdhender/ecv3/server/store"
 	"github.com/mdhender/ecv3/server/web"
@@ -221,15 +222,7 @@ func serve(ctx context.Context, port, dataDir string, bindIP bool, trustedProxie
 	sessions := auth.New(st, auth.Config{BindIP: bindIP, Secure: true, TrustedProxies: proxies})
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		if err := st.Ping(r.Context()); err != nil {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			_, _ = w.Write([]byte(`{"status":"unavailable"}`))
-			return
-		}
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
-	})
+	api.New(st, sessions).Register(mux)
 	mux.Handle("/", spa)
 
 	// Handler chain (outermost first):
