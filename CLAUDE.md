@@ -27,11 +27,11 @@ It is **not** real-time in the game-engine sense; interactivity is order entry p
 ## Proposed repo layout
 
 ```
-/server/            # Go module: API, SQLite, SSE, auth
-  main.go
+go.mod              # module github.com/mdhender/ecv3 (rooted at repo root)
+/cmd/ec/main.go     # binary entrypoint (package main); builds to `ec`
+/server/            # Go backend packages: API, SQLite, SSE, auth
   web/dist/         # built Ember app, go:embed'd (build output; gitignore or commit per preference)
 /client/            # Ember v7 app (npm/pnpm toolchain — build-time only)
-/src/               # LEGACY Next.js reference (docs template) — do not extend
 ```
 
 ## Go backend conventions
@@ -75,8 +75,11 @@ It is **not** real-time in the game-engine sense; interactivity is order entry p
 
 ## Tailwind UI Kit HTML components
 
-- Tailwind UI Kit HTML components are available at ~/Software/tailwind/application-ui/html.
-- Refer to ELEMENTS.md for information on integrating with the HTML components
+**Build the front end by composing it from the Tailwind UI Kit, not by hand-rolling markup.** When building any UI, first search the kit for a component that fits, then port it into Ember.
+
+- **Component library:** `~/Software/tailwind/application-ui/html` — a categorized library of static HTML component markup. Browse/grep it by category before writing new UI: `application-shells`, `data-display`, `elements`, `feedback`, `forms`, `headings`, `layout`, `lists`, `navigation`, `overlays`, `page-examples`. Pick the closest snippet as the starting point.
+- **Interactivity:** **Tailwind Plus Elements** (`@tailwindplus/elements`) provides the JS behavior for the interactive snippets (dialog, select, tabs, dropdown menu, popover, command palette, autocomplete, disclosure, copy button). It's framework-agnostic (custom elements), so it works inside Ember templates. See `ELEMENTS.md` for the component list and install/usage details.
+- **Workflow:** find the snippet in the html library → port its markup into a `.gjs`/`.gts` component (strict mode) → wire any interactive behavior with Tailwind Plus Elements rather than reimplementing it. Default to these building blocks; only write bespoke markup when the kit has no suitable component.
 
 ## How Claude should work in this repo
 
@@ -87,15 +90,15 @@ It is **not** real-time in the game-engine sense; interactivity is order entry p
 
 ## Versions (to confirm — fill in via ember-mcp / `go version`)
 
-- Go: `__` (target latest stable; needs 1.22+ for pattern routing)
+- Go: `1.26.4` (per `go.mod`; needs 1.22+ for pattern routing)
 - Ember: `__` (v7 / latest Polaris — verify via ember-mcp)
-- SQLite driver: `modernc.org/sqlite` `__`
+- SQLite driver: `zombiezen.com/go/sqlite` `__` (+ `zombiezen.com/go/sqlite/sqlitemigration`)
 - Node (build/CI only): `__` (ember-mcp itself needs Node 22+)
 
 ## Commands (to fill in as the project takes shape)
 
 - Build SPA: `__`
-- Build binary: `__`
-- Run server: `__`
+- Build binary: `go build -o ec ./cmd/ec`
+- Run server: `go run ./cmd/ec`
 - Test (Go): `go test ./...`
 - Test (Ember): `cd client && ember test`
