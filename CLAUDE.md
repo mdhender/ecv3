@@ -143,7 +143,7 @@ Browser ─> https://ecv3.localhost:8443 (global Caddy, tls internal)
              └── /*      ─> Ember/Vite (:4201)      — HMR over wss
 ```
 
-One-time setup: paste the two blocks from `./Caddyfile` (a fragment, not a
+One-time setup: paste the two blocks from `dist/Caddyfile` (a fragment, not a
 standalone config) into `/opt/homebrew/etc/Caddyfile`, then reload:
 `caddy reload --config /opt/homebrew/etc/Caddyfile --adapter caddyfile`.
 

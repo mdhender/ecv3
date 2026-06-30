@@ -51,7 +51,7 @@ clean:
 ## dev: print the development workflow (air + ember; global Caddy proxies)
 dev:
 	@echo "ecv3 dev runs behind your global Caddy at https://ecv3.localhost:8443"
-	@echo "One-time: paste the ./Caddyfile fragment into /opt/homebrew/etc/Caddyfile, then:"
+	@echo "One-time: paste the dist/Caddyfile fragment into /opt/homebrew/etc/Caddyfile, then:"
 	@echo "  caddy reload --config /opt/homebrew/etc/Caddyfile --adapter caddyfile"
 	@echo "Then run these in separate terminals:"
 	@echo "  1. air                       # rebuild/restart the Go API on :25634"
