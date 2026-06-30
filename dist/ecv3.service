@@ -22,6 +22,15 @@ Documentation=https://github.com/mdhender/ecv3
 After=network-online.target
 Wants=network-online.target
 
+# Maintenance gate: if /opt/ecv3/MAINTENANCE exists, the start is skipped
+# (the leading "!" negates the check). A failed condition is logged and treated
+# as success, so the unit isn't marked failed. To take the service down for a
+# maintenance window:
+#   sudo touch /opt/ecv3/MAINTENANCE && sudo systemctl stop ecv3
+# and to bring it back:
+#   sudo rm /opt/ecv3/MAINTENANCE && sudo systemctl start ecv3
+ConditionPathExists=!/opt/ecv3/MAINTENANCE
+
 [Service]
 Type=simple
 User=ecv3
