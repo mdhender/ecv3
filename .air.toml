@@ -11,7 +11,7 @@ tmp_dir = "tmp"
 [build]
   cmd = "go build -o ./tmp/ec ./cmd/ec"
   bin = "tmp/ec"
-  full_bin = "PORT=25634 ./tmp/ec"
+  full_bin = "PORT=25634 ./tmp/ec serve"
   include_ext = ["go"]
   exclude_dir = ["tmp", "client", "server/web/dist"]
   exclude_regex = ["_test\\.go"]

@@ -94,6 +94,8 @@ go.mod              # module github.com/mdhender/ecv3 (rooted at repo root)
 - Ember: `ember-source ~7.0.0`, `ember-cli ~7.0.0` (scaffolded with CLI 7.0.1). App is **TypeScript (.gts + Glint)**, strict mode.
 - Build system: **Vite 8 + Embroider** (`@embroider/vite ^1.7.2`); type-check via `ember-tsc`. TypeScript `^5.9.3`.
 - Data layer: **WarpDrive** (`@warp-drive/core` + `@warp-drive/ember` `~5.8.2`); store at `client/app/services/store.ts`.
+- CLI/config: `github.com/peterbourgon/ff/v4` `v4.0.0-beta.1` (ff.Command tree in `cmd/ec`).
+- Versioning: `github.com/maloquacious/semver` `v0.4.0`; version lives in root `version.go` (`ecv3.Version()`).
 - SQLite driver: `zombiezen.com/go/sqlite` (+ `zombiezen.com/go/sqlite/sqlitemigration`) `__` (pin once added to `go.mod`)
 - Node (build/CI only): `22.x` (currently `22.22.2`). Minimum `>= 20.19.0` for ember-cli 7.0.1; ember-mcp needs Node 22+.
 - Package manager (client): **pnpm** `11.9.0` (via corepack).
@@ -108,6 +110,12 @@ embedded before `go build`):
 - `make server` — compile the binary only (assumes the SPA is already embedded)
 - `make test` — `go test ./...` + `cd client && pnpm test`
 - `make clean` — remove the binary and generated build output (preserves the embed dir's committed `.gitignore`)
+
+The binary (`ec`) is an `ff.Command` tree:
+
+- `ec serve [--port N]` — run the HTTP server (API + embedded SPA). Port defaults to `$PORT` then `8080`. (`go run ./cmd/ec serve`)
+- `ec version` — print the core version (`major.minor.patch`) from `ecv3.Version().Core()`
+- `ec` (no subcommand) — print help
 
 Client-only commands:
 
