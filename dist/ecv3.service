@@ -10,6 +10,10 @@
 #   sudo chown -R ecv3:ecv3 /opt/ecv3
 #   sudo chmod 0750 /opt/ecv3/data
 #
+# Create the database ONCE (the data dir must already exist; serve only opens,
+# it never creates). Run as the service user so the files are owned correctly:
+#   sudo -u ecv3 /opt/ecv3/bin/ec database create /opt/ecv3/data
+#
 # Install + enable the service:
 #   sudo install -m 0644 dist/ecv3.service /etc/systemd/system/ecv3.service
 #   sudo systemctl daemon-reload
@@ -38,8 +42,10 @@ Group=ecv3
 WorkingDirectory=/opt/ecv3
 ExecStart=/opt/ecv3/bin/ec serve
 
-# Configuration via environment (the binary reads PORT; defaults to 8080).
-# ECV3_DATA points at the SQLite data dir — reserved for when persistence lands.
+# Configuration via environment. The binary reads PORT (defaults to 8080) and
+# ECV3_DATA, the directory holding the SQLite database (<data>/ecv3.db). serve
+# opens that database on startup and exits non-zero if it is missing, so run
+# `ec database create /opt/ecv3/data` once before the first start (see above).
 Environment=PORT=8080
 Environment=ECV3_DATA=/opt/ecv3/data
 

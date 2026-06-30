@@ -96,7 +96,7 @@ go.mod              # module github.com/mdhender/ecv3 (rooted at repo root)
 - Data layer: **WarpDrive** (`@warp-drive/core` + `@warp-drive/ember` `~5.8.2`); store at `client/app/services/store.ts`.
 - CLI/config: `github.com/peterbourgon/ff/v4` `v4.0.0-beta.1` (ff.Command tree in `cmd/ec`).
 - Versioning: `github.com/maloquacious/semver` `v0.4.0`; version lives in root `version.go` (`ecv3.Version()`).
-- SQLite driver: `zombiezen.com/go/sqlite` (+ `zombiezen.com/go/sqlite/sqlitemigration`) `__` (pin once added to `go.mod`)
+- SQLite driver: `zombiezen.com/go/sqlite` (+ `zombiezen.com/go/sqlite/sqlitemigration`) `v1.4.2` (pure Go, no CGO). Data layer is `server/store`; the DB file is always `<data>/ecv3.db` (`store.Filename`). `store.Create`/`store.Open` also accept `:memory:` (`store.MemoryPath`) for in-memory test databases.
 - Node (build/CI only): `22.x` (currently `22.22.2`). Minimum `>= 20.19.0` for ember-cli 7.0.1; ember-mcp needs Node 22+.
 - Package manager (client): **pnpm** `11.9.0` (via corepack).
 
