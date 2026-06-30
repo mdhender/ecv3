@@ -85,7 +85,7 @@ go.mod              # module github.com/mdhender/ecv3 (rooted at repo root)
 
 1. **For any Ember API, syntax, version, or migration question, use the `ember` MCP first** (`search_ember_docs`, API lookups, version info). Fall back to `WebFetch`/`WebSearch` of the official guides. Treat memory as suspect for Ember specifics.
 2. **Pin versions.** Record exact Go, Ember, and key package versions here once chosen; prefer the latest stable confirmed via MCP/npm.
-3. Keep the **API contract** between Go and Ember explicit and in one place; update both sides together.
+3. Keep the **API contract** between Go and Ember explicit and in one place: [`docs/api.md`](docs/api.md) is the canonical, human-readable contract. It is backed by `server/api/dto.go` (the `json` tags are the wire-name source of truth) and the `server/api` `httptest` suite (which asserts the shapes). Update the doc, the DTOs, and both sides of the wire together. No OpenAPI/Swagger at this scale — revisit only for external consumers or generated SDKs. Format split is hybrid: plain JSON for auth *actions*, JSON:API for *resources* the WarpDrive cache consumes.
 4. Don't run a dev server or build unless asked; when building, build Ember → `dist`, embed, then `go build`.
 
 ## Versions (to confirm — fill in via ember-mcp / `go version`)
