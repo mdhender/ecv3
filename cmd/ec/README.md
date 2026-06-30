@@ -36,16 +36,71 @@ Run `ec` with no subcommand (or any command with `-h`/`--help`) to print usage.
 ### `ec serve`
 
 ```
-ec serve [--port N] [--data DIR]
+ec serve [--port N] [--data DIR] [--session-bind-ip BOOL] [--trusted-proxies CIDRs]
 ```
 
 Run the HTTP server (API + embedded SPA). Opens `<data>/ecv3.db` and applies any
 pending migrations before listening; it never creates the database (a missing one
 is a fast, clear failure). Shuts down gracefully on `SIGINT`/`SIGTERM`.
 
+| Flag                      | Default                | Notes                                                                                    |
+|---------------------------|------------------------|------------------------------------------------------------------------------------------|
+| `--port N`                | `$PORT`, else `8080`   | TCP port to listen on.                                                                    |
+| `--data DIR`              | `$ECV3_DATA`, else `data` | Directory holding `ecv3.db`.                                                           |
+| `--session-bind-ip BOOL`  | `true`                 | Bind each session to its origin IP; re-authenticate on IP change.                        |
+| `--trusted-proxies CIDRs` | `127.0.0.0/8,::1/128`  | Comma-separated CIDRs of reverse proxies whose `X-Forwarded-For` is honored.             |
+
 ```sh
 ec serve --port 8080 --data ./data
 ```
+
+#### Sessions & security
+
+Authentication uses opaque, server-side sessions in an `HttpOnly`, `Secure`,
+`SameSite=Lax` cookie (the cookie carries a random token; only its SHA-256 is
+stored, so a leaked database cannot be replayed as live cookies). CSRF is handled
+at the edge by the stdlib `http.CrossOriginProtection` middleware, and any
+direct-TLS path is pinned to **TLS 1.3**. We do not support older browsers.
+
+**`--session-bind-ip`** (default `true`) ties a session to the client IP it was
+created with: a request from a different IP is treated as unauthenticated and the
+user must log in again. Disable it for clients whose IP rotates mid-session — a
+VPN that changes exit nodes, mobile network hand-offs — so they are not nagged to
+re-authenticate:
+
+```sh
+ec serve --session-bind-ip=false
+```
+
+The IP is always *recorded* (audit / "active devices"); the flag gates only
+*enforcement*.
+
+**`--trusted-proxies`** controls how the client IP is determined behind a reverse
+proxy, and is what makes IP binding trustworthy:
+
+- The `X-Forwarded-For` header is honored **only** when the request's direct peer
+  is within one of these CIDRs. From any other source the header is
+  attacker-controlled and ignored — the direct peer IP is used instead.
+- When the peer is trusted, `X-Forwarded-For` is scanned **right-to-left** and the
+  first non-trusted address is taken as the real client (correct through a chain
+  of proxies, and unspoofable: an attacker can only prepend left-hand entries the
+  scan never reaches).
+
+The default trusts loopback, which is correct for the same-host Caddy setup (dev
+and prod). Adjust it to match your topology:
+
+```sh
+# Caddy (or another trusted proxy) on a separate host
+ec serve --trusted-proxies=10.0.0.0/8
+
+# No proxy — the binary faces clients directly; never trust the header
+ec serve --trusted-proxies=""
+```
+
+> ⚠️ **IP binding is only as trustworthy as `--trusted-proxies`.** If a real proxy
+> is missing from the list, the recorded IP becomes the proxy's address (binding
+> still works, just coarsely). If an *untrusted* source is wrongly added, clients
+> behind it can spoof their IP via `X-Forwarded-For` and defeat binding.
 
 ### `ec database create`
 
