@@ -91,14 +91,20 @@ go.mod              # module github.com/mdhender/ecv3 (rooted at repo root)
 ## Versions (to confirm — fill in via ember-mcp / `go version`)
 
 - Go: `1.26.4` (per `go.mod`; needs 1.22+ for pattern routing)
-- Ember: `__` (v7 / latest Polaris — verify via ember-mcp)
-- SQLite driver: `zombiezen.com/go/sqlite` `__` (+ `zombiezen.com/go/sqlite/sqlitemigration`)
-- Node (build/CI only): `__` (ember-mcp itself needs Node 22+)
+- Ember: `ember-source ~7.0.0`, `ember-cli ~7.0.0` (scaffolded with CLI 7.0.1). App is **TypeScript (.gts + Glint)**, strict mode.
+- Build system: **Vite 8 + Embroider** (`@embroider/vite ^1.7.2`); type-check via `ember-tsc`. TypeScript `^5.9.3`.
+- Data layer: **WarpDrive** (`@warp-drive/core` + `@warp-drive/ember` `~5.8.2`); store at `client/app/services/store.ts`.
+- SQLite driver: `zombiezen.com/go/sqlite` (+ `zombiezen.com/go/sqlite/sqlitemigration`) `__` (pin once added to `go.mod`)
+- Node (build/CI only): `22.x` (currently `22.22.2`). Minimum `>= 20.19.0` for ember-cli 7.0.1; ember-mcp needs Node 22+.
+- Package manager (client): **pnpm** `11.9.0` (via corepack).
 
 ## Commands (to fill in as the project takes shape)
 
-- Build SPA: `__`
+- Install client deps: `cd client && pnpm install`
+- Dev server (client): `cd client && pnpm start` (Vite)
+- Build SPA: `cd client && pnpm build` → outputs `client/dist/` (TODO: wire copy/build into `server/web/dist/` for `go:embed`)
+- Lint/type-check (client): `cd client && pnpm lint` / `pnpm lint:types`
+- Test (Ember): `cd client && pnpm test`
 - Build binary: `go build -o ec ./cmd/ec`
 - Run server: `go run ./cmd/ec`
 - Test (Go): `go test ./...`
-- Test (Ember): `cd client && ember test`
